@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Check if zenity is installed
+if ! command -v zenity &> /dev/null; then
+    echo "Zenity is not installed. Please install it:"
+    echo "sudo apt install zenity  # Debian/Ubuntu"
+    echo "sudo dnf install zenity  # Fedora"
+    exit 1
+fi
+
+# GTK theme with light green colors (applied only to zenity)
+export GTK_THEME="Adwaita:light"  # Base light theme
+export GTK_COLOR_SCHEME="success { color: #90EE90; }"  # Light green for success
+
+# Ask for the URL (with light green hints)
+URL=$(zenity --entry \
+    --title="<span foreground='#006400'>Download File</span>" \
+    --text="<span foreground='#2E8B57'>Enter file URL:</span>" \
+    --width=400 \
+    --window-icon="info" \
+    --ok-label="Download" \
+    --cancel-label="Exit")
+
+# Exit if no URL provided
+if [ -z "$URL" ]; then
+    zenity --error \
+        --title="<span foreground='#8B0000'>Error</span>" \
+        --text="<span foreground='#556B2F'>No URL provided!</span>" \
+        --width=300
+    exit 1
+fi
+
+# Ask where to save the file (green-themed file chooser)
+SAVE_PATH=$(zenity --file-selection \
+    --save \
+    --confirm-overwrite \
+    --title="<span foreground='#006400'>Select Save Location</span>" \
+    --filename="downloaded_file" \
+    --file-filter="All files | *.*")
+
+# Exit if no path selected
+if [ -z "$SAVE_PATH" ]; then
+    zenity --error \
+        --title="<span foreground='#8B0000'>Error</span>" \
+        --text="<span foreground='#556B2F'>No save location selected!</span>" \
+        --width=300
+    exit 1
+fi
+
+# Download the file with light green progress bar
+(
+    echo "0" ; sleep 1
+    wget -O "$SAVE_PATH" "$URL" 2>&1 | grep -o "[0-9]\+%" | sed 's/%//'
+    echo "100"
+) | zenity --progress \
+    --title="<span foreground='#006400'>Downloading...</span>" \
+    --text="<span foreground='#2E8B57'>Fetching: $(basename "$SAVE_PATH")</span>" \
+    --percentage=0 \
+    --auto-close \
+    --pulsate \
+    --no-cancel
+
+# Success/failure message with green colors
+if [ -f "$SAVE_PATH" ]; then
+    zenity --info \
+        --title="<span foreground='#006400'>Success!</span>" \
+        --text="<span foreground='#2E8B57'>File saved to:\n$SAVE_PATH</span>" \
+        --width=400 \
+        --window-icon="dialog-information"
+else
+    zenity --error \
+        --title="<span foreground='#8B0000'>Error</span>" \
+        --text="<span foreground='#556B2F'>Download failed!</span>" \
+        --width=300
+fi
